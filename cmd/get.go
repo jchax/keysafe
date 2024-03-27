@@ -39,6 +39,7 @@ assumed to be well-formed JSON.`,
 		Args:                  cobra.ExactArgs(1),
 		Run:                   getRun,
 		DisableFlagsInUseLine: true,
+		ValidArgsFunction:     singleNameCompletion,
 	}
 	doShell bool
 )

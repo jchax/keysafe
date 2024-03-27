@@ -48,6 +48,7 @@ A +INDICATOR on the end of a modifies the value stored:
 		Args:                  cobra.MinimumNArgs(1),
 		Run:                   setRun,
 		DisableFlagsInUseLine: true,
+		ValidArgsFunction:     singleNameCompletion,
 	}
 	timeout time.Duration
 )

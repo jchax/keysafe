@@ -32,6 +32,7 @@ var listCmd = &cobra.Command{
 	Run:                   listRun,
 	Args:                  cobra.ExactArgs(0),
 	DisableFlagsInUseLine: true,
+	ValidArgsFunction:     noCompletionArgs,
 }
 
 func init() {

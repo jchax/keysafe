@@ -85,3 +85,50 @@ func initVars(cmd *cobra.Command, args []string) {
 	keysafe, err = keyctl.NewKeySafe(viper.GetString("keyring"))
 	cobra.CheckErr(err)
 }
+
+// This is called before cmd.PreRun (initVars) so keysafe is nil and, of
+// course, the program is no longer running once the shell has our
+// potential completions.
+func singleNameCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) == 1 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	k, err := keyctl.NewKeySafe(viper.GetString("keyring"))
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+	names, err := k.List()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
+func multiNameCompletion(cnd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	k, err := keyctl.NewKeySafe(viper.GetString("keyring"))
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+	names, err := k.List()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+	var res []string
+	for _, name := range names {
+		var seen bool
+		for _, arg := range args {
+			if arg == name {
+				seen = true
+				break
+			}
+		}
+		if !seen {
+			res = append(res, name)
+		}
+	}
+	return res, cobra.ShellCompDirectiveNoFileComp
+}
+
+func noCompletionArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return nil, cobra.ShellCompDirectiveNoFileComp
+}

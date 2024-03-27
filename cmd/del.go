@@ -33,6 +33,7 @@ completely cleared.`,
 	PreRun:                initVars,
 	Run:                   delRun,
 	DisableFlagsInUseLine: true,
+	ValidArgsFunction:     multiNameCompletion,
 }
 
 func init() {

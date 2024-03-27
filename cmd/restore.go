@@ -38,6 +38,7 @@ As a convenience, the input can be decrypted by gpg or clevis tang.`,
 		Run:                   restoreRun,
 		Args:                  cobra.MaximumNArgs(1),
 		DisableFlagsInUseLine: true,
+		ValidArgsFunction:     noCompletionArgs,
 	}
 )
 

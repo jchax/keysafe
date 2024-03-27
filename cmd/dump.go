@@ -38,7 +38,9 @@ dumped keysafe can be stored in an encrypted file to save it across a
 reboot or transferred to another system using ssh.`,
 		PreRun:                initVars,
 		Run:                   dumpRun,
+		Args:                  cobra.MaximumNArgs(0),
 		DisableFlagsInUseLine: true,
+		ValidArgsFunction:     noCompletionArgs,
 	}
 	clevisTangUrl   string
 	gpgEncryptRecip string
