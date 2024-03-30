@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	"golang.org/x/sys/unix"
 )
 
 const keysafe = "deposit-box"
@@ -85,7 +83,7 @@ func TestMultiStoreKeyring(t *testing.T) {
 		}
 	}
 	_, err = keyring.Get("nothing")
-	if err == nil || err != unix.ENOKEY {
+	if err == nil || err != ErrNoKey {
 		t.Errorf("Unexpecred success or wrong error: %v\n", err)
 	}
 	if err := keyring.Unlink(); err != nil {
@@ -264,7 +262,7 @@ func (k *KeySafe) GetService(name string) (*Service, error) {
 	return &s, err
 }
 
-//Set a Service in the keyring
+// Set a Service in the keyring
 func (k *KeySafe) SetService(name string, s *Service) error {
 	data, err := json.Marshal(s)
 	if err != nil {

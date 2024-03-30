@@ -60,7 +60,7 @@ type KeySafe struct {
 
 // generic request and response
 type request struct {
-	op interface{}
+	op any
 }
 type response struct {
 	err  error
@@ -157,7 +157,7 @@ func NewKeySafe(kname string) (*KeySafe, error) {
 	return safes[kname], nil
 }
 
-func (k *KeySafe) request(req interface{}) *response {
+func (k *KeySafe) request(req any) *response {
 	k.m.Lock()
 	defer k.m.Unlock()
 	if k.err != nil {
