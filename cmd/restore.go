@@ -17,12 +17,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log"
 	"os"
 	"os/exec"
 
+	"filippo.io/age"
+	"filippo.io/age/armor"
 	"github.com/spf13/cobra"
 )
 
@@ -46,9 +49,10 @@ func init() {
 	rootCmd.AddCommand(restoreCmd)
 	f := restoreCmd.Flags()
 	f.Bool("gpg", false, "decrypt input using gpg")
-	f.Bool("tang", false, "dcrypt input using clevis tang")
+	f.Bool("tang", false, "decrypt input using clevis tang")
+	f.Bool("age", false, "decrypt input using age")
 	f.BoolVarP(&doClear, "clear", "c", false, "clear keyring before restoring")
-	restoreCmd.MarkFlagsMutuallyExclusive("gpg", "tang")
+	restoreCmd.MarkFlagsMutuallyExclusive("gpg", "tang", "age")
 }
 
 func restoreRun(cmd *cobra.Command, args []string) {
@@ -61,6 +65,7 @@ func restoreRun(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer f.Close()
 	}
 	if gpg, _ := cmd.Flags().GetBool("gpg"); gpg {
 		cmd := exec.Command("gpg", "--quiet", "--decrypt")
@@ -74,6 +79,7 @@ func restoreRun(cmd *cobra.Command, args []string) {
 		}(f)
 		stdout, err := cmd.StdoutPipe()
 		cobra.CheckErr(err)
+		defer stdout.Close()
 		if err = cmd.Start(); err != nil {
 			log.Fatal(err)
 		}
@@ -95,6 +101,7 @@ func restoreRun(cmd *cobra.Command, args []string) {
 		}(f)
 		stdout, err := cmd.StdoutPipe()
 		cobra.CheckErr(err)
+		defer stdout.Close()
 		if err = cmd.Start(); err != nil {
 			log.Fatal(err)
 		}
@@ -104,11 +111,28 @@ func restoreRun(cmd *cobra.Command, args []string) {
 		}
 		return
 	}
+	if doAge, _ := cmd.Flags().GetBool("age"); doAge {
+		password, err := getPassword("password", false)
+		if err != nil {
+			log.Fatal(err)
+		}
+		identity, err := age.NewScryptIdentity(password)
+		in := armor.NewReader(f)
+		r, err := age.Decrypt(in, identity)
+		if err != nil {
+			log.Fatal(err)
+		}
+		buf := new(bytes.Buffer)
+		if _, err = io.Copy(buf, r); err != nil {
+			log.Fatal(err)
+		}
+		doRestore(buf)
+		return
+	}
 	doRestore(f)
 }
 
-func doRestore(src io.ReadCloser) {
-	defer src.Close()
+func doRestore(src io.Reader) {
 	var values map[string]string
 	if err := json.NewDecoder(src).Decode(&values); err != nil {
 		log.Fatalf("json: %v", err)
