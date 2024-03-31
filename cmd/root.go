@@ -17,6 +17,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -24,6 +27,7 @@ import (
 	"github.com/jchax/keysafe/keyctl"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/term"
 )
 
 var (
@@ -131,4 +135,31 @@ func multiNameCompletion(cnd *cobra.Command, args []string, toComplete string) (
 
 func noCompletionArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	return nil, cobra.ShellCompDirectiveNoFileComp
+}
+
+func getPassword(prompt string, confirm bool) (string, error) {
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		return "", err
+	}
+	defer tty.Close()
+	fmt.Fprintf(tty, "%s: ", prompt)
+	var data, data1 []byte
+	data, err = term.ReadPassword(int(tty.Fd()))
+	fmt.Fprintln(tty)
+	if err != nil {
+		return "", err
+	}
+	if confirm {
+		fmt.Fprintf(tty, "confirm %s: ", prompt)
+		data1, err = term.ReadPassword(int(tty.Fd()))
+		fmt.Fprintln(tty)
+		if err != nil {
+			return "", err
+		}
+		if !bytes.Equal(data, data1) {
+			return "", errors.New("confirmation failure")
+		}
+	}
+	return string(data), nil
 }

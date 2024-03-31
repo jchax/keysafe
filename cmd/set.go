@@ -20,14 +20,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 var (
@@ -103,18 +101,11 @@ func getTagValue(arg string) (string, string, error) {
 		val = string(bytes.TrimSpace(data))
 	case strings.HasSuffix(tag, "+PROMPT"):
 		tag = tag[:len(tag)-7]
-		tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+		var err error
+		val, err = getPassword(tag, false)
 		if err != nil {
 			return "", "", err
 		}
-		defer tty.Close()
-		fmt.Fprintf(tty, "%s: ", val)
-		data, err := term.ReadPassword(int(tty.Fd()))
-		if err != nil {
-			return "", "", err
-		}
-		fmt.Fprintln(tty)
-		val = string(data)
 	}
 	if tag == "" {
 		return "", "", errors.New("missing tag")
