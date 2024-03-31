@@ -17,12 +17,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
 
+	"filippo.io/age"
+	"filippo.io/age/armor"
 	"github.com/spf13/cobra"
 )
 
@@ -44,6 +48,7 @@ reboot or transferred to another system using ssh.`,
 	}
 	clevisTangUrl   string
 	gpgEncryptRecip string
+	agePassword     bool
 )
 
 func init() {
@@ -51,7 +56,8 @@ func init() {
 	f := dumpCmd.Flags()
 	f.StringVar(&clevisTangUrl, "tang", "", "encrypt using this clevis tang URL")
 	f.StringVar(&gpgEncryptRecip, "gpg", "", "encrypt using gpg for this recipient")
-	dumpCmd.MarkFlagsMutuallyExclusive("tang", "gpg")
+	f.BoolVar(&agePassword, "age", false, "encrypt using age password")
+	dumpCmd.MarkFlagsMutuallyExclusive("tang", "gpg", "age")
 }
 
 func dumpRun(cmd *cobra.Command, args []string) {
@@ -105,6 +111,31 @@ func dumpRun(cmd *cobra.Command, args []string) {
 		}()
 		err = cmd.Run()
 		if err != nil {
+			log.Fatal(err)
+		}
+	case agePassword:
+		buf := new(bytes.Buffer)
+		if err = json.NewEncoder(buf).Encode(dump); err != nil {
+			log.Fatal(err)
+		}
+		password, err := getPassword("password", true)
+		if err != nil {
+			log.Fatal(err)
+		}
+		recipient, err := age.NewScryptRecipient(password)
+		if err != nil {
+			log.Fatal(err)
+		}
+		out := armor.NewWriter(os.Stdout)
+		defer out.Close()
+		w, err := age.Encrypt(out, recipient)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if _, err = io.Copy(w, buf); err != nil {
+			log.Fatal(err)
+		}
+		if err = w.Close(); err != nil {
 			log.Fatal(err)
 		}
 	default:
