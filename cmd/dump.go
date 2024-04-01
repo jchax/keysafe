@@ -33,16 +33,19 @@ import (
 // dumpCmd represents the dump command
 var (
 	dumpCmd = &cobra.Command{
-		Use:   "dump",
+		Use:   "dump [FILE]",
 		Short: "Dump all keys as JSON",
 		Long: `Dump all keys as JSON.
 
 A keysafe can be restored using "keysafe restore".  As a convenience, the
 dumped keysafe can be stored in an encrypted file to save it across a
-reboot or transferred to another system using ssh.`,
+reboot or transferred to another system using ssh.
+
+If the output FILE is given, an existing file is renamed before writing to
+the new file.`,
 		PreRun:                initVars,
 		Run:                   dumpRun,
-		Args:                  cobra.MaximumNArgs(0),
+		Args:                  cobra.MaximumNArgs(1),
 		DisableFlagsInUseLine: true,
 		ValidArgsFunction:     noCompletionArgs,
 	}
@@ -56,7 +59,7 @@ func init() {
 	f := dumpCmd.Flags()
 	f.StringVar(&clevisTangUrl, "tang", "", "encrypt using this clevis tang URL")
 	f.StringVar(&gpgEncryptRecip, "gpg", "", "encrypt using gpg for this recipient")
-	f.BoolVar(&agePassword, "age", false, "encrypt using age password")
+	f.BoolVar(&agePassword, "age", false, "encrypt using age with prompted password")
 	dumpCmd.MarkFlagsMutuallyExclusive("tang", "gpg", "age")
 }
 
@@ -73,6 +76,17 @@ func dumpRun(cmd *cobra.Command, args []string) {
 		}
 		dump[name] = string(val)
 	}
+	var out io.WriteCloser
+	if len(args) == 0 {
+		out = os.Stdout
+	} else {
+		os.Rename(args[0], args[0]+"~")
+		out, err = os.Create(args[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer out.Close()
+	}
 	switch {
 	case clevisTangUrl != "":
 		cmd := exec.Command("clevis-encrypt-tang",
@@ -81,7 +95,7 @@ func dumpRun(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		cmd.Stdout = os.Stdout
+		cmd.Stdout = out
 		cmd.Stderr = os.Stderr
 		go func() {
 			defer stdin.Close()
@@ -100,7 +114,7 @@ func dumpRun(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		cmd.Stdout = os.Stdout
+		cmd.Stdout = out
 		cmd.Stderr = os.Stderr
 		go func() {
 			defer stdin.Close()
@@ -126,7 +140,7 @@ func dumpRun(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		out := armor.NewWriter(os.Stdout)
+		out = armor.NewWriter(out)
 		defer out.Close()
 		w, err := age.Encrypt(out, recipient)
 		if err != nil {
@@ -139,7 +153,7 @@ func dumpRun(cmd *cobra.Command, args []string) {
 			log.Fatal(err)
 		}
 	default:
-		err = json.NewEncoder(os.Stdout).Encode(dump)
+		err = json.NewEncoder(out).Encode(dump)
 		if err != nil {
 			log.Fatal(err)
 		}
