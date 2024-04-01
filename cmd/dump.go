@@ -19,14 +19,13 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
 
-	"filippo.io/age"
-	"filippo.io/age/armor"
 	"github.com/spf13/cobra"
 )
 
@@ -76,86 +75,39 @@ func dumpRun(cmd *cobra.Command, args []string) {
 		}
 		dump[name] = string(val)
 	}
-	var out io.WriteCloser
-	if len(args) == 0 {
-		out = os.Stdout
-	} else {
-		os.Rename(args[0], args[0]+"~")
-		out, err = os.Create(args[0])
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer out.Close()
+	var buf bytes.Buffer
+	if err = json.NewEncoder(&buf).Encode(dump); err != nil {
+		log.Fatalf("json: %v", err)
 	}
+	var r io.Reader = &buf
+
 	switch {
 	case clevisTangUrl != "":
-		cmd := exec.Command("clevis-encrypt-tang",
-			fmt.Sprintf(`{"url":%q}`, clevisTangUrl), "-y")
-		stdin, err := cmd.StdinPipe()
-		if err != nil {
-			log.Fatal(err)
-		}
-		cmd.Stdout = out
-		cmd.Stderr = os.Stderr
-		go func() {
-			defer stdin.Close()
-			err := json.NewEncoder(stdin).Encode(dump)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-		err = cmd.Run()
-		if err != nil {
-			log.Fatal(err)
-		}
+		r, err = externalCipher(r,
+			exec.Command("clevis-encrypt-tang", fmt.Sprintf(`{"url":%q}`, clevisTangUrl), "-y"))
 	case gpgEncryptRecip != "":
-		cmd := exec.Command("gpg", "--encrypt", "--armour", "--recipient", gpgEncryptRecip)
-		stdin, err := cmd.StdinPipe()
-		if err != nil {
-			log.Fatal(err)
-		}
-		cmd.Stdout = out
-		cmd.Stderr = os.Stderr
-		go func() {
-			defer stdin.Close()
-			err := json.NewEncoder(stdin).Encode(dump)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-		err = cmd.Run()
-		if err != nil {
-			log.Fatal(err)
-		}
+		r, err = externalCipher(r,
+			exec.Command("gpg", "--encrypt", "--armour", "--recipient", gpgEncryptRecip))
 	case agePassword:
-		buf := new(bytes.Buffer)
-		if err = json.NewEncoder(buf).Encode(dump); err != nil {
+		r, err = ageEncrypt(r)
+	}
+	if err != nil {
+		log.Fatalf("encrypt: %v", err)
+	}
+	var w io.Writer = os.Stdout
+	if len(args) > 0 {
+		err = os.Rename(args[0], args[0]+"~")
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			log.Fatal(err)
 		}
-		password, err := getPassword("password", true)
+		dst, err := os.Create(args[0])
 		if err != nil {
 			log.Fatal(err)
 		}
-		recipient, err := age.NewScryptRecipient(password)
-		if err != nil {
-			log.Fatal(err)
-		}
-		out = armor.NewWriter(out)
-		defer out.Close()
-		w, err := age.Encrypt(out, recipient)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if _, err = io.Copy(w, buf); err != nil {
-			log.Fatal(err)
-		}
-		if err = w.Close(); err != nil {
-			log.Fatal(err)
-		}
-	default:
-		err = json.NewEncoder(out).Encode(dump)
-		if err != nil {
-			log.Fatal(err)
-		}
+		defer dst.Close()
+		w = dst
+	}
+	if _, err = io.Copy(w, r); err != nil {
+		log.Fatal(err)
 	}
 }
