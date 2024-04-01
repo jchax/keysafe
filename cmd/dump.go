@@ -47,7 +47,7 @@ the new file.`,
 		Run:                   dumpRun,
 		Args:                  cobra.MaximumNArgs(1),
 		DisableFlagsInUseLine: true,
-		ValidArgsFunction:     noCompletionArgs,
+		ValidArgsFunction:     singleFileCompletionArgs,
 	}
 	clevisTangUrl   string
 	gpgEncryptRecip string

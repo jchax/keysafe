@@ -137,6 +137,13 @@ func noCompletionArgs(cmd *cobra.Command, args []string, toComplete string) ([]s
 	return nil, cobra.ShellCompDirectiveNoFileComp
 }
 
+func singleFileCompletionArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	return args, cobra.ShellCompDirectiveDefault
+}
+
 func getPassword(prompt string, confirm bool) (string, error) {
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {

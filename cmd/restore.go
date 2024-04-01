@@ -41,7 +41,7 @@ As a convenience, the input can be decrypted by age, clevis tang or gpg.`,
 		Run:                   restoreRun,
 		Args:                  cobra.MaximumNArgs(1),
 		DisableFlagsInUseLine: true,
-		ValidArgsFunction:     noCompletionArgs,
+		ValidArgsFunction:     singleFileCompletionArgs,
 	}
 )
 
