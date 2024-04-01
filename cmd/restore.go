@@ -36,7 +36,7 @@ var (
 		Short: "Restore a keysafe saved by \"keysafe dump\"",
 		Long: `Restore a keysafe saved by "keysafe dump".
 
-As a convenience, the input can be decrypted by gpg or clevis tang.`,
+As a convenience, the input can be decrypted by age, clevis tang or gpg.`,
 		PreRun:                initVars,
 		Run:                   restoreRun,
 		Args:                  cobra.MaximumNArgs(1),
