@@ -69,6 +69,9 @@ func dumpRun(cmd *cobra.Command, args []string) {
 	}
 	dump := make(map[string]string)
 	for _, name := range names {
+		if name[0] == '.' {
+			continue
+		}
 		val, err := keysafe.Get(name)
 		if err != nil {
 			log.Fatal(err)
