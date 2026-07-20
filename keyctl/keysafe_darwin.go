@@ -4,6 +4,7 @@ package keyctl
 
 import (
 	"errors"
+	"time"
 )
 
 const (
@@ -11,6 +12,8 @@ const (
 )
 
 var (
+	ErrNoKey          = errors.New("Required key not available")
+	ErrKeyExpired     = errors.New("Key has expired")
 	ErrNotImplemented = errors.New("not implemented")
 )
 
@@ -27,8 +30,16 @@ func (k *KeySafe) Set(name string, value []byte) error {
 	return ErrNotImplemented
 }
 
+func (k *KeySafe) SetTimeout(name string, timeout time.Duration) error {
+	return ErrNotImplemented
+}
+
 func (k *KeySafe) List() ([]string, error) {
 	return nil, ErrNotImplemented
+}
+
+func (k *KeySafe) Reap() (int, error) {
+	return 0, ErrNotImplemented
 }
 
 func (k *KeySafe) Clear() error {

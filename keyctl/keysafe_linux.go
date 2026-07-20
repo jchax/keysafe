@@ -67,6 +67,7 @@ type response struct {
 	fin  bool
 	buf  []byte
 	strs []string
+	int  int
 }
 
 // request types
@@ -83,6 +84,7 @@ type get string
 type del string
 type list struct{}
 type clear struct{}
+type reap struct{}
 
 // Create or retrive a keysafe called @name
 func NewKeySafe(kname string) (*KeySafe, error) {
@@ -138,6 +140,9 @@ func NewKeySafe(kname string) (*KeySafe, error) {
 			case list:
 				l, err := doList(keyring)
 				res <- &response{err: err, strs: l}
+			case reap:
+				n, err := doReap(keyring)
+				res <- &response{err: err, int: n}
 			case clear:
 				err := doClear(keyring)
 				res <- &response{err: err}
@@ -276,6 +281,7 @@ func doList(keyring int) ([]string, error) {
 		id := binary.LittleEndian.Uint32(data[4*i : 4*(i+1)])
 		desc, err := unix.KeyctlString(unix.KEYCTL_DESCRIBE, int(id))
 		if err == ErrKeyExpired {
+			fmt.Printf("%q\n", desc)
 			continue
 		}
 		if err != nil {
@@ -294,4 +300,33 @@ func (k *KeySafe) Clear() error {
 func doClear(keyring int) error {
 	_, err := unix.KeyctlInt(unix.KEYCTL_CLEAR, keyring, 0, 0, 0)
 	return err
+}
+
+func (k *KeySafe) Reap() (int, error) {
+	res := k.request(reap{})
+	return res.int, res.err
+}
+
+func doReap(keyring int) (int, error) {
+	len, err := unix.KeyctlBuffer(unix.KEYCTL_READ, keyring, nil, 0)
+	if err != nil {
+		return 0, err
+	}
+	data := make([]byte, len)
+	_, err = unix.KeyctlBuffer(unix.KEYCTL_READ, keyring, data, len)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for i := 0; i < len/4; i++ {
+		id := binary.LittleEndian.Uint32(data[4*i : 4*(i+1)])
+		_, err := unix.KeyctlString(unix.KEYCTL_DESCRIBE, int(id))
+		if err == ErrKeyExpired {
+			_, err = unix.KeyctlInt(unix.KEYCTL_UNLINK, int(id), keyring, 0, 0)
+			if err == nil {
+				count++
+			}
+		}
+	}
+	return count, nil
 }
