@@ -42,6 +42,7 @@ assumed to be well-formed JSON.`,
 		ValidArgsFunction:     singleNameCompletion,
 	}
 	doShell bool
+	key     string
 )
 
 func init() {
@@ -49,7 +50,8 @@ func init() {
 	f := getCmd.Flags()
 	f.BoolVarP(&doShell, "eval", "e", false, "output as Bourne shell settings")
 	f.BoolVarP(&doJson, "json", "j", false, "output as JSON")
-	getCmd.MarkFlagsMutuallyExclusive("eval", "json")
+	f.StringVarP(&key, "value", "v", "", "get a single for value for this tag")
+	getCmd.MarkFlagsMutuallyExclusive("eval", "json", "value")
 }
 
 func getRun(cmd *cobra.Command, args []string) {
@@ -68,6 +70,8 @@ func getRun(cmd *cobra.Command, args []string) {
 		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
 		enc.Encode(&value)
+	case key != "":
+		fmt.Println(value[key])
 	case doShell:
 		for k, v := range value {
 			fmt.Printf("%s='%s'\n",
