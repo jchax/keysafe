@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 
@@ -29,14 +30,14 @@ import (
 
 var (
 	getCmd = &cobra.Command{
-		Use:   "get [OPTIONS] NAME",
+		Use:   "get [OPTIONS] NAME [TAG...]",
 		Short: "Get the contents of a named key",
 		Long: `Get the contents of a named key.
 
 There are options suitable for various script types.  Key contents are
 assumed to be well-formed JSON.`,
 		PreRun:                initVars,
-		Args:                  cobra.ExactArgs(1),
+		Args:                  cobra.MinimumNArgs(1),
 		Run:                   getRun,
 		DisableFlagsInUseLine: true,
 		ValidArgsFunction:     singleNameCompletion,
@@ -50,8 +51,7 @@ func init() {
 	f := getCmd.Flags()
 	f.BoolVarP(&doShell, "eval", "e", false, "output as Bourne shell settings")
 	f.BoolVarP(&doJson, "json", "j", false, "output as JSON")
-	f.StringVarP(&key, "value", "v", "", "get a single for value for this tag")
-	getCmd.MarkFlagsMutuallyExclusive("eval", "json", "value")
+	getCmd.MarkFlagsMutuallyExclusive("eval", "json")
 }
 
 func getRun(cmd *cobra.Command, args []string) {
@@ -64,14 +64,25 @@ func getRun(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if len(args) > 1 {
+		for k := range value {
+			if !slices.Contains(args[1:], k) {
+				delete(value, k)
+			}
+		}
+		if !doJson && !doShell {
+			for _, v := range value {
+				fmt.Println(v)
+			}
+			return
+		}
+	}
 	switch {
 	case doJson:
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
 		enc.Encode(&value)
-	case key != "":
-		fmt.Println(value[key])
 	case doShell:
 		for k, v := range value {
 			fmt.Printf("%s='%s'\n",
