@@ -20,6 +20,7 @@ Available Commands:
   reap        Remove expired keys from a keyring
   restore     Restore a keysafe saved by "keysafe dump"
   set         Set values in an entry
+  version     Show the keysafe version
 
 Flags:
   -h, --help             help for keysafe
